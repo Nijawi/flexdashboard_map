@@ -1,0 +1,166 @@
+---
+title: "Flexdashboard example"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: fill
+    navbar:
+      - { title: "UQRUG", href: "https://uqrug.netlify.app/", align: left }
+    social: [ "menu" ]
+    source_code: embed
+    theme: cosmo
+---
+<style>
+.box1 {
+  background-color: rgba(39, 128, 227, 0.7);
+  color: white;
+  font-size: 38px;
+}
+.box2 {
+  background-color: rgba(255, 117, 24, 0.7);
+  color: white;
+  font-size: 38px;
+}
+
+</style>
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr)
+library(DT)
+library(crosstalk)
+library(plotly)
+library(tmap)
+library(summarywidget)
+
+```
+
+# Flex Intro and Map {data-navmenu="Introduction" .storyboard}
+Welcome to UQRUG!
+
+### Flexdashboard Frames
+The goal of <strong>flexdashboard</strong> is to make it easy to create interactive dashboards for R, using R Markdown.</p>
+
+<ul>
+<li><p>Use <a href="https://rmarkdown.rstudio.com" class="external-link">R Markdown</a> to publish a group of related data visualizations as a dashboard.</p></li>
+<li><p>Support for a wide variety of components including <a href="https://www.htmlwidgets.org" class="external-link">htmlwidgets</a>; base, lattice, and grid graphics; tabular data; gauges and value boxes; and text annotations.</p></li>
+<li><p>Flexible and easy to specify row and column-based <a href="https://pkgs.rstudio.com/flexdashboard/articles/layouts.html">layouts</a>. Components are intelligently re-sized to fill the browser and adapted for display on mobile devices.</p></li>
+<li><p><a href="https://pkgs.rstudio.com/flexdashboard/articles/using.html#storyboards-1">Storyboard</a> layouts for presenting sequences of visualizations and related commentary.</p></li>
+<li><p>Optionally use <a href="https://shiny.rstudio.com" class="external-link">Shiny</a> to drive visualizations dynamically.</p></li>
+<li><p>Optionally use <a href="https://rstudio.github.io/bslib/" class="external-link">bslib</a> to easily <a href="https://pkgs.rstudio.com/flexdashboard/articles/theme.html">customize main colors, fonts, and more</a>.</p></li>
+</ul>
+<p>Learn more about <strong>flexdashboard</strong>: <a href="https://pkgs.rstudio.com/flexdashboard" class="uri">https://pkgs.rstudio.com/flexdashboard</a></p>
+
+***
+This section allows you to provide a side section for commentary on the left panel.
+
+![](logo.png)
+
+### A Map Frame
+You can insert text, and R code here to display outputs. Even a map!
+
+```{r}
+library(leaflet)
+leaflet() %>%
+  addTiles() %>%
+  addMarkers(lng=153.01374, lat=-27.49617, popup="The location of today's UQRUG")
+```  
+
+
+# Link Examples {data-navmenu="Introduction"}
+You can put pages in dropdowns
+<br>
+And link to other pages, such as [Dashboard] or [any other page](#flex-intro-and-map)
+
+
+Dashboard  {data-icon="fa-list" data-orientation=rows}
+=====================================
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+This is a separate sidebar column where we can add interactive content. This could be Shiny based, but in this case is using Crosstalk.
+
+```{r}
+# loading data and cleaning it
+data(World)
+World <- filter(World, iso_a3 != "ATA" & iso_a3 != "ATF") %>% 
+  mutate(area = round(area), 
+         pop_est_dens = round(pop_est_dens),
+         gdp_cap_est = round(gdp_cap_est))
+wsd <- SharedData$new(World)
+
+# crosstalk input functions
+filter_slider("gdp_cap_est", "GDP per cap ", wsd, ~gdp_cap_est, width = "100%", min = 0)
+filter_checkbox("continent", "Continent", wsd, ~continent, inline = TRUE)
+filter_select("income_grp", "Income Group", wsd, ~income_grp)
+
+```
+
+
+Row
+-----------------------------------------------------------------------
+
+### Interactive Map
+
+
+```{r}
+plot_geo(wsd, text = ~paste(name, "<br />", "Life Exp:", life_exp, "<br />", "GDP per cap:", round(gdp_cap_est)), hoverinfo = 'text', color = ~continent,  showlegend=FALSE, fill='tonext') %>% layout(margin = list(l = 2, r = 2, t = 2, b = 2)) %>% 
+    highlight("plotly_click")
+
+```
+
+> Click on a country to select it. Double click to deselect. 
+
+### Histogram of World life expectancy
+
+```{r}
+  plot_ly(wsd) %>% 
+    add_trace(x = ~life_exp, color = ~continent, type="histogram")%>% layout(barmode = "stack") %>% 
+    highlight("plotly_selected")
+```
+
+Row
+-----------------------------------------------------------------------
+
+### GDP vs Life Exp Scatterplot
+```{r}
+  plot_ly(wsd) %>% 
+    add_trace(x = ~gdp_cap_est, y = ~life_exp, color = ~continent, size = ~pop_est, type="scatter",text = ~paste(name, "<br />", "Life Exp:", life_exp, "<br />", "GDP per cap:", round(gdp_cap_est)), hoverinfo = 'text')%>% 
+  layout(xaxis = list(type = "log")) %>% 
+    highlight("plotly_selected")
+```
+> You can select one, or multiple points
+
+### Interactive Datatable
+
+```{r}
+datatable(wsd, class = "compact",options=list(
+       pageLength = 5,
+       lengthMenu = c(5, 10, 15))) %>%
+  formatStyle( 0, target= 'row',  lineHeight='80%')
+```
+
+
+Row {data-height=150}
+-----------------------------------------------------------------------
+
+
+### Mean Life Expectancy {.box1}
+
+```{r}
+summarywidget(wsd, statistic='mean', column='life_exp', digits=1)
+```
+
+### Total GDP {.box2}
+
+```{r}
+summarywidget(wsd, statistic='sum', column='gdp_cap_est', digits=0)
+```
+
+### Country Count {.box1}
+```{r}
+summarywidget(wsd, statistic='count', column='name')
+```
+
+### Text Box {.box2}
+You can also have a panel that just has text in it too.
